@@ -4,7 +4,7 @@ Full-stack application for Club Hualas built with Next.js 14, Prisma and Postgre
 
 ## Development
 
-1. Copy `.env.example` to `.env` and set the values (database connection, NextAuth secret, canonical `APP_BASE_URL`, Google OAuth client credentials if using Google sign-in, Mercadopago token, Pinata JWT for IPFS uploads, and `BLOB_READ_WRITE_TOKEN` for private file uploads).
+1. Copy `.env.example` to `.env` and set the values (database connection, NextAuth secret, canonical `APP_BASE_URL`, Google OAuth client credentials if using Google sign-in, Mercadopago token, Pinata JWT for IPFS uploads, `BLOB_READ_WRITE_TOKEN` for private file uploads, and the `RESEND_*` variables for notification email delivery).
 2. Install dependencies with `pnpm install`.
 3. Generate the Prisma client: `pnpm prisma:generate`.
 4. Start the dev server: `pnpm dev`.
@@ -38,7 +38,7 @@ the exact command and reason in the final response.
 
 - Git repository: https://github.com/escuelademontana/Hualas (local `origin`).
 - Vercel project: https://vercel.com/hualas/hualas (team `hualas`, Next.js preset, root `./`), connected to `escuelademontana/Hualas`.
-- Supabase project: `hualas` (`vcdcqfpejlrhvwcytyyg`). The Neon PostgreSQL database was migrated on 2026-09-10; the target contains 46 public tables. Local `DATABASE_URL` and `SUPA_DATABASE_URL` use the Supavisor session pooler for migrations. Production `DATABASE_URL` uses the Supavisor transaction pooler with `pgbouncer=true` and `connection_limit=1` to avoid serverless connection exhaustion. `SUPABASE_DB_PASSWORD` is kept as a local helper; Vercel receives the complete pooler URL through `DATABASE_URL`.
+- Supabase project: `hualas` (`vcdcqfpejlrhvwcytyyg`). It contains the complete application database with 46 public tables. Local `DATABASE_URL` and `SUPA_DATABASE_URL` use the Supavisor session pooler for migrations. Production `DATABASE_URL` uses the Supavisor transaction pooler with `pgbouncer=true` and `connection_limit=1` to avoid serverless connection exhaustion. `SUPABASE_DB_PASSWORD` is kept as a local helper; Vercel receives the complete pooler URL through `DATABASE_URL`.
 - Vercel Blob store: `hualas-media`, connected to the `hualas` project for Production and Preview with a generated `BLOB_READ_WRITE_TOKEN`. The activity assets migrated from the previous Blob store live in `public/activity-images/`; their database values use `/activity-images/...` and the activity image API routes serve them with immutable caching. New uploads continue to use Vercel Blob.
 - Production deployment: https://clubhualas.com.ar/ (Vercel alias https://hualas-iota.vercel.app/), built from `main` and connected to the GitHub repository. The Vercel production environment has the Supabase `DATABASE_URL`, `NEXTAUTH_SECRET`, and Google OAuth credentials configured.
 - The custom domain `clubhualas.com.ar` is assigned to Production in Vercel and shows `Configuración válida` with DNS/SSL active.
@@ -46,6 +46,7 @@ the exact command and reason in the final response.
 - Apply pending Prisma migrations separately with `pnpm db:migrate:deploy` before or after deploy, using the intended target database.
 - Make sure `DATABASE_URL` points to the target database when running migrations.
 - Configure `BLOB_READ_WRITE_TOKEN` in Vercel for private Blob uploads such as profile photos, receipts, activity media, news media, and professor invoices.
+- Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESEND_FROM_NAME` in Vercel to deliver the existing in-app notifications by email. The sender domain must be verified in Resend before production delivery.
 - File uploads are validated server-side by magic bytes before private Blob writes; spoofed image/SVG content is rejected even if the browser reports an image MIME type.
 - If a deployment is already serving an older schema, run `pnpm db:migrate:deploy` once against that database and redeploy.
 

@@ -6,7 +6,7 @@
 
 **Architecture:** New `PROFESSOR` enum value + three new DB models (`ActivityProfessor`, `ActivitySession`, `SessionAttendance`). Five new API routes. Existing `/my-activities` page extended for professors. React-Leaflet used for interactive map picker (SSR-safe with `next/dynamic`).
 
-**Tech Stack:** Next.js 14 App Router, Prisma + PostgreSQL (Neon), TypeScript, Tailwind CSS, NextAuth, react-leaflet + leaflet
+**Tech Stack:** Next.js 14 App Router, Prisma + PostgreSQL, TypeScript, Tailwind CSS, NextAuth, react-leaflet + leaflet
 
 ---
 
