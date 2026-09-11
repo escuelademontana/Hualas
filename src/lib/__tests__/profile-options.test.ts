@@ -7,7 +7,11 @@ describe('profile options', () => {
     const argentina = COUNTRIES.find((country) => country.code === 'AR');
 
     expect(argentina).toEqual(
-      expect.objectContaining({ name: 'Argentina', flag: '🇦🇷' })
+      expect.objectContaining({
+        name: 'Argentina',
+        flag: '🇦🇷',
+        flagUrl: 'https://flagcdn.com/w40/ar.png',
+      })
     );
     expect(COUNTRIES.length).toBeGreaterThan(190);
   });

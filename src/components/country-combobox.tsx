@@ -5,6 +5,7 @@ import {
   COUNTRIES,
   findCountryByName,
   normalizeCountryName,
+  type CountryOption,
 } from '@/lib/countries';
 
 type CountryComboboxProps = {
@@ -14,6 +15,23 @@ type CountryComboboxProps = {
   placeholder?: string;
   className?: string;
 };
+
+function CountryFlag({ country }: { country: CountryOption }) {
+  return (
+    <span className="relative inline-flex h-4 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-muted text-[10px] leading-none">
+      <span aria-hidden="true">{country.flag}</span>
+      <img
+        src={country.flagUrl}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover"
+        onError={(event) => {
+          event.currentTarget.style.display = 'none';
+        }}
+      />
+    </span>
+  );
+}
 
 export default function CountryCombobox({
   id,
@@ -69,7 +87,9 @@ export default function CountryCombobox({
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base"
           >
-            {(selectedCountry || inputCountry)?.flag}
+            {(selectedCountry || inputCountry) && (
+              <CountryFlag country={selectedCountry || inputCountry!} />
+            )}
           </span>
         )}
         <input
@@ -120,9 +140,7 @@ export default function CountryCombobox({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => selectCountry(country.name)}
               >
-                <span aria-hidden="true" className="text-base">
-                  {country.flag}
-                </span>
+                <CountryFlag country={country} />
                 <span>{country.name}</span>
               </button>
             ))
