@@ -85,6 +85,9 @@ route, update this file in the same change.
   - Related components:
     - `src/app/profile/form.tsx`
     - `src/app/profile/profile-photo-upload.tsx`
+    - `src/components/country-combobox.tsx` (searchable country selector with flags)
+  - The profile form limits marital status to Soltera/o, Casada/o,
+    Divorciada/o, and Viuda/o.
 - `/profile/children` -> `src/app/profile/children/page.tsx`
 - `/profile/children/new` -> `src/app/profile/children/new/page.tsx`
 - `/profile/children/[childId]` -> `src/app/profile/children/[childId]/page.tsx`

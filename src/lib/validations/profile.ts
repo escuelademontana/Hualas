@@ -1,4 +1,17 @@
 import { z } from 'zod';
+import {
+  MARITAL_STATUS_OPTIONS,
+  normalizeMaritalStatus,
+} from '@/lib/profile-options';
+
+export const maritalStatusSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = normalizeMaritalStatus(value);
+    return normalized;
+  },
+  z.union([z.enum(MARITAL_STATUS_OPTIONS), z.literal('')]).optional()
+);
 
 export const profileUpdateSchema = z.object({
   name: z.string().optional(),
@@ -14,7 +27,7 @@ export const profileUpdateSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   nationality: z.string().optional(),
-  maritalStatus: z.string().optional(),
+  maritalStatus: maritalStatusSchema,
   email: z.string().email().optional(),
   password: z.preprocess(
     (val) => (val === '' ? undefined : val),

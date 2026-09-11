@@ -56,7 +56,7 @@ export async function PATCH(req: Request) {
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.nationality !== undefined) updateData.nationality = data.nationality;
   if (data.maritalStatus !== undefined)
-    updateData.maritalStatus = data.maritalStatus;
+    updateData.maritalStatus = data.maritalStatus || null;
   if (data.allergies !== undefined) updateData.allergies = data.allergies;
   if (data.regularMedication !== undefined)
     updateData.regularMedication = data.regularMedication;

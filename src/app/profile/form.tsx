@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
+import CountryCombobox from '@/components/country-combobox';
+import { findCountryByName } from '@/lib/countries';
+import {
+  MARITAL_STATUS_OPTIONS,
+  normalizeMaritalStatus,
+} from '@/lib/profile-options';
 
 type User = {
   name: string | null;
@@ -42,8 +48,12 @@ export default function ProfileForm({
   const [birthDate, setBirthDate] = useState(user.birthDate ?? '');
   const [gender, setGender] = useState(user.gender ?? '');
   const [address, setAddress] = useState(user.address ?? '');
-  const [nationality, setNationality] = useState(user.nationality ?? '');
-  const [maritalStatus, setMaritalStatus] = useState(user.maritalStatus ?? '');
+  const [nationality, setNationality] = useState(
+    findCountryByName(user.nationality)?.name ?? ''
+  );
+  const [maritalStatus, setMaritalStatus] = useState<string>(() =>
+    normalizeMaritalStatus(user.maritalStatus)
+  );
   const [allergies, setAllergies] = useState(user.allergies ?? '');
   const [regularMedication, setRegularMedication] = useState(
     user.regularMedication ?? ''
@@ -244,23 +254,29 @@ export default function ProfileForm({
       </label>
       <label className="space-y-1 text-sm">
         <span className="text-muted-foreground">Nacionalidad</span>
-        <input
-          className={inputClass}
-          name="country"
-          autoComplete="country-name"
+        <CountryCombobox
+          id="profile-nationality"
           value={nationality}
-          onChange={(e) => setNationality(e.target.value)}
+          onChange={setNationality}
+          className={inputClass}
         />
       </label>
       <label className="space-y-1 text-sm">
         <span className="text-muted-foreground">Estado civil</span>
-        <input
+        <select
           className={inputClass}
           name="marital-status"
           autoComplete="off"
           value={maritalStatus}
           onChange={(e) => setMaritalStatus(e.target.value)}
-        />
+        >
+          <option value="">Seleccionar</option>
+          {MARITAL_STATUS_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       </label>
 
       {/* Medical Sheet */}

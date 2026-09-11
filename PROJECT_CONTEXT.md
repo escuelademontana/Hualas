@@ -127,6 +127,9 @@ Database integrity notes:
   opens and supports page turns from the arrow buttons, keyboard arrows, and
   clicks on the right or left half of the visible page.
 - Logged-in users can access profile, chat, notifications, children/family data, activity checkout, payments, pickup notices, and personal registration flows.
+- The member profile stores nationality from the searchable country picker in
+  `src/components/country-combobox.tsx`, including a country flag. Marital
+  status is limited to Soltera/o, Casada/o, Divorciada/o, and Viuda/o.
 - Pickup notice creation at `/profile/pickup-notices/new` now uses a
   4-step wizard: choose the child first, then an enabled activity for that
   child, then an enabled day/schedule, and finally the pickup person name.
