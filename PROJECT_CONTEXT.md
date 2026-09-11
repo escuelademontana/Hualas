@@ -91,6 +91,12 @@ Important models:
 
 Database integrity notes:
 
+- Production uses Supavisor with `connection_limit=1`; the activity withdrawal
+  transaction uses the unextended Prisma client so the audit extension cannot
+  open a second connection while that transaction is active. The interactive
+  transaction allows up to 10 seconds to acquire a connection and 15 seconds
+  to finish both writes during cold starts.
+
 - Professor access for grouped activity days uses `ActivityGroupProfessor`; ungrouped activity days fall back to `ActivityProfessor`. The retired `ActivityDayProfessor` table only exists in historical migrations.
 - Some database-only guards are implemented as SQL partial unique indexes because Prisma schema cannot represent them: adult `SocialFeePayment` rows are unique per user/month/year when `childId IS NULL`, and non-null `Payment.providerPaymentId` values are unique per provider.
 - `ActivityParticipantPayment` has database check constraints requiring monthly payments to carry `periodMonth`/`periodYear` and session payments to carry `activityDayId`.
