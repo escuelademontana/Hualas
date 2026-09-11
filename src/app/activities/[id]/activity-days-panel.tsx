@@ -18,6 +18,9 @@ import ActivityCalendar, {
   type CalendarActivityDay,
 } from '@/app/my-activities/activity-calendar';
 import { SPORT_ICONS } from '@/lib/sport-icons';
+import SavedLocationPicker, {
+  type SavedLocation,
+} from '../saved-location-picker';
 
 const LocationMapPicker = dynamic(() => import('../location-map-picker'), {
   ssr: false,
@@ -245,6 +248,14 @@ export default function ActivityDaysPanel({
     setQuickError(null);
   };
 
+  const applySavedLocation = (location: SavedLocation) => {
+    setQuickGeoLocation(location.name);
+    setQuickCoordinates({
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+  };
+
   const closeQuickEditor = () => {
     if (quickSaving) return;
     setEditingDayId(null);
@@ -403,6 +414,13 @@ export default function ActivityDaysPanel({
                   className="mb-3 w-full rounded-md border bg-background px-3 py-2 text-sm"
                   placeholder="Nombre o referencia del lugar"
                 />
+                <div className="mb-3">
+                  <SavedLocationPicker
+                    locationName={quickGeoLocation}
+                    coordinates={quickCoordinates}
+                    onSelect={applySavedLocation}
+                  />
+                </div>
                 <label className="mb-2 block text-sm font-medium">
                   Deporte
                 </label>

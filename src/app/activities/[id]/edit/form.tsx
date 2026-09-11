@@ -11,6 +11,9 @@ import { SPORT_ICONS } from '@/lib/sport-icons';
 import { centsToPesos, pesosToCents } from '@/lib/accounting';
 import ProfessorPicker from '../../professor-picker';
 import GroupProfessorPicker from '../../group-professor-picker';
+import SavedLocationPicker, {
+  type SavedLocation,
+} from '../../saved-location-picker';
 
 type ProfessorOption = {
   id: string;
@@ -160,6 +163,17 @@ export default function EditActivityForm({
   const selectedProfessors = professors.filter((professor) =>
     professorIds.includes(professor.id)
   );
+
+  function applySavedLocation(location: SavedLocation) {
+    setAnnualShared((current) => ({
+      ...current,
+      geoLocation: location.name,
+      coordinates: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+    }));
+  }
 
   const inputClass =
     'w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary';
@@ -644,6 +658,12 @@ export default function EditActivityForm({
                   className={inputClass}
                 />
               </div>
+
+              <SavedLocationPicker
+                locationName={annualShared.geoLocation}
+                coordinates={annualShared.coordinates}
+                onSelect={applySavedLocation}
+              />
 
               <div className="space-y-2">
                 <p className="text-sm font-medium">Punto en el mapa</p>

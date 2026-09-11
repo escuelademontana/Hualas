@@ -6,6 +6,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SPORT_ICONS } from '@/lib/sport-icons';
+import SavedLocationPicker, {
+  type SavedLocation,
+} from '../saved-location-picker';
 
 type Coordinates = {
   latitude: number;
@@ -100,6 +103,14 @@ export default function ActivityDayForm({
   const [saving, setSaving] = useState(false);
 
   const isEdit = mode === 'edit';
+
+  const applySavedLocation = (location: SavedLocation) => {
+    setGeoLocation(location.name);
+    setCoordinates({
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+  };
 
   const resetCreateForm = () => {
     setDate('');
@@ -197,6 +208,11 @@ export default function ActivityDayForm({
         className={inputClass}
         placeholder="Nombre o referencia del lugar"
         required
+      />
+      <SavedLocationPicker
+        locationName={geoLocation}
+        coordinates={coordinates}
+        onSelect={applySavedLocation}
       />
       <div className="space-y-2">
         <p className="text-sm font-medium">Punto en el mapa</p>

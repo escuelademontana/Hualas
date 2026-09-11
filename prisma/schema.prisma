@@ -47,6 +47,7 @@ model User {
   activityProfessors          ActivityProfessor[]
   activityGroupProfessors     ActivityGroupProfessor[]
   createdActivityDays         ActivityDay[]                @relation("ActivityDayCreatedBy")
+  savedLocations              SavedLocation[]              @relation("SavedLocationCreatedBy")
   children                    Child[]
   accountingMovements         AccountingMovement[]
   accountingMonthClosings     AccountingMonthClose[]
@@ -71,6 +72,21 @@ model User {
   createdParticipantReports   ActivityParticipantReport[]  @relation("ActivityParticipantReportCreatedBy")
   roleAssignments             UserRoleAssignment[]         @relation("UserRoleAssignmentUser")
   roleAssignmentsGranted      UserRoleAssignment[]         @relation("UserRoleAssignmentAssignedBy")
+}
+
+model SavedLocation {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  latitude    Float
+  longitude   Float
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation("SavedLocationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([name])
+  @@index([name])
 }
 
 model UserRoleAssignment {
@@ -260,16 +276,16 @@ model ActivityProfessor {
 }
 
 model ActivityGroup {
-  id          String                @id @default(cuid())
+  id          String                   @id @default(cuid())
   activityId  String
   name        String
   description String?
   capacity    Int?
   minAge      Int?
   maxAge      Int?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  activity    Activity              @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  activity    Activity                 @relation(fields: [activityId], references: [id], onDelete: Cascade)
   members     ActivityGroupMember[]
   days        ActivityDay[]
   professors  ActivityGroupProfessor[]

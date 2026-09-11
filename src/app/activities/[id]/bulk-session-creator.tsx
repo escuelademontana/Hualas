@@ -6,6 +6,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SPORT_ICONS } from '@/lib/sport-icons';
+import SavedLocationPicker, {
+  type SavedLocation,
+} from '../saved-location-picker';
 
 type GroupOption = {
   id: string;
@@ -93,6 +96,14 @@ export default function BulkSessionCreator({
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const applySavedLocation = (location: SavedLocation) => {
+    setGeoLocation(location.name);
+    setCoordinates({
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+  };
 
   const existingSet = new Set(existingDayDates);
   function toggleDate(dateStr: string, disabled: boolean) {
@@ -406,6 +417,12 @@ export default function BulkSessionCreator({
                 />
               </div>
             </div>
+
+            <SavedLocationPicker
+              locationName={geoLocation}
+              coordinates={coordinates}
+              onSelect={applySavedLocation}
+            />
 
             <div className="space-y-2">
               <p className="text-sm font-medium">Punto en el mapa</p>
