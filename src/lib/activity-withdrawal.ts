@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { basePrisma, prisma } from '@/lib/prisma';
 
 type TransactionLike = Prisma.TransactionClient;
 type PrismaClientLike = {
@@ -44,7 +44,12 @@ export async function withdrawActivityParticipant(
   input: WithdrawalInput,
   db?: PrismaClientLike
 ) {
-  const client = db ?? (prisma as unknown as PrismaClientLike);
+  // Production uses Supavisor with connection_limit=1. The audit extension
+  // performs extra queries through the base client after each write, which
+  // can exhaust that single connection while an interactive transaction is
+  // open. Use the unextended client for this atomic operation so the
+  // transaction can finish with the configured pool size.
+  const client = db ?? ((basePrisma ?? prisma) as unknown as PrismaClientLike);
   const withdrawnAt = input.now ?? new Date();
 
   return client.$transaction(async (tx: TransactionLike) => {

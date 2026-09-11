@@ -27,13 +27,27 @@ export async function POST(
     return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400 });
   }
 
-  const participant = await withdrawActivityParticipant({
-    activityId: params.id,
-    participantId: payload.participantId,
-    userId: session.user.id,
-    note: payload.note,
-    rating: payload.rating,
-  });
+  let participant;
+  try {
+    participant = await withdrawActivityParticipant({
+      activityId: params.id,
+      participantId: payload.participantId,
+      userId: session.user.id,
+      note: payload.note,
+      rating: payload.rating,
+    });
+  } catch (error) {
+    console.error('[activity-withdrawal] failed', {
+      activityId: params.id,
+      participantId: payload.participantId,
+      userId: session.user.id,
+      error,
+    });
+    return NextResponse.json(
+      { error: 'No se pudo registrar la baja. Intentá nuevamente.' },
+      { status: 500 }
+    );
+  }
 
   if (!participant) {
     return NextResponse.json(
