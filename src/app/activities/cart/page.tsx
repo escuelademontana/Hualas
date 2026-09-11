@@ -61,6 +61,7 @@ type QuoteResponse = {
 
 export default function ActivitiesCartPage() {
   const [items, setItems] = useState<ActivityCartItem[]>([]);
+  const [socialFeeOnlyMode, setSocialFeeOnlyMode] = useState(false);
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(true);
@@ -75,6 +76,18 @@ export default function ActivitiesCartPage() {
   } | null>(null);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const forceSocialFeeOnly =
+      searchParams.get('socialFeeOnly') === '1' ||
+      searchParams.get('socialFeeOnly') === 'true';
+    setSocialFeeOnlyMode(forceSocialFeeOnly);
+
+    if (forceSocialFeeOnly) {
+      setItems([]);
+      setHydrated(true);
+      return;
+    }
+
     const raw = window.localStorage.getItem(ACTIVITY_CART_STORAGE_KEY);
     if (!raw) {
       setItems([]);
@@ -103,10 +116,10 @@ export default function ActivitiesCartPage() {
       setError(null);
       setErrorAction(null);
       try {
-        const payload =
-          items.length === 0
-            ? { items: [], socialFeeOnly: true, socialFeeMonths }
-            : { items };
+        const paySocialFeeOnly = socialFeeOnlyMode || items.length === 0;
+        const payload = paySocialFeeOnly
+          ? { items: [], socialFeeOnly: true, socialFeeMonths }
+          : { items };
         const response = await fetch('/api/activities/cart/quote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -144,7 +157,7 @@ export default function ActivitiesCartPage() {
     fetchQuote();
 
     return () => controller.abort();
-  }, [hydrated, items, socialFeeMonths]);
+  }, [hydrated, items, socialFeeMonths, socialFeeOnlyMode]);
 
   const persist = (next: ActivityCartItem[]) => {
     setItems(next);
@@ -160,10 +173,10 @@ export default function ActivitiesCartPage() {
     setErrorAction(null);
 
     try {
-      const payload =
-        items.length === 0
-          ? { items: [], socialFeeOnly: true, socialFeeMonths }
-          : { items };
+      const paySocialFeeOnly = socialFeeOnlyMode || items.length === 0;
+      const payload = paySocialFeeOnly
+        ? { items: [], socialFeeOnly: true, socialFeeMonths }
+        : { items };
       const response = await fetch('/api/activities/cart/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

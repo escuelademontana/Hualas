@@ -366,7 +366,11 @@ export default async function Home() {
               </Link>
 
               <Link
-                href="/activities/cart"
+                href={
+                  hasPendingPayments
+                    ? '/activities/cart?socialFeeOnly=1'
+                    : '/activities/cart'
+                }
                 className={`group rounded-lg border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md ${
                   hasPendingPayments ? 'border-amber-300 bg-amber-50/70' : ''
                 }`}
@@ -446,7 +450,7 @@ export default async function Home() {
                     ) : null}
                   </div>
                   <Link
-                    href="/activities/cart"
+                    href="/activities/cart?socialFeeOnly=1"
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
                   >
                     Pagar pendientes

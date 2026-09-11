@@ -174,7 +174,10 @@ Database integrity notes:
 - The activity cart quotes pending monthly payments for active `ANNUAL`
   activity participants in the current month, alongside pending social fee
   lines. The yellow member notices on home and `/my-activities` link to the
-  cart and list both kinds of monthly debt.
+  cart and list both kinds of monthly debt. The home notice uses
+  `/activities/cart?socialFeeOnly=1` to let a member pay the social fee alone;
+  this mode temporarily ignores saved activity selections without deleting
+  them from local storage.
 - Approved Mercado Pago payments and approved manual payments create or update
   `ActivityParticipant` records through the shared transactional finalization
   helper in `src/lib/services/activity-enrollment-finalization.ts`.

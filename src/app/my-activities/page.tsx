@@ -544,7 +544,7 @@ export default async function MyActivitiesPage({
               </ul>
             </div>
             <Link
-              href="/activities/cart"
+              href="/activities/cart?socialFeeOnly=1"
               prefetch={true}
               className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-amber-700 px-4 text-xs font-semibold text-white transition-colors hover:bg-amber-800"
             >

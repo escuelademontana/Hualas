@@ -51,7 +51,9 @@ route, update this file in the same change.
 - `/activities/join/[id]` -> `src/app/activities/join/[id]/page.tsx`
   - Public/member join landing page.
 - `/activities/cart` -> `src/app/activities/cart/page.tsx`
-  - Member activity inscription cart.
+  - Member activity inscription cart. The optional `socialFeeOnly=1` query
+    parameter opens the pending-payment view with only social fee lines,
+    preserving any saved activity selections for later.
 - `/activities/[id]/groups/[groupId]` -> `src/app/activities/[id]/groups/[groupId]/page.tsx`
   - Activity group detail and member management.
 - `/activities/[id]/groups/[groupId]/edit` -> `src/app/activities/[id]/groups/[groupId]/edit/page.tsx`
@@ -220,6 +222,8 @@ Methods below come from the current `route.ts` exports.
 - `POST` `/api/activities/cart/available` -> `src/app/api/activities/cart/available/route.ts`
 - `POST` `/api/activities/cart/quote` -> `src/app/api/activities/cart/quote/route.ts`
 - `POST` `/api/activities/cart/checkout` -> `src/app/api/activities/cart/checkout/route.ts`
+  - The quote and checkout routes accept `socialFeeOnly: true` with an empty
+    `items` array for a standalone social fee quote or checkout.
 - `GET, POST` `/api/saved-locations` -> `src/app/api/saved-locations/route.ts`
 - `PUT, PATCH, DELETE` `/api/activity-days/[dayId]` -> `src/app/api/activity-days/[dayId]/route.ts`
 - `PATCH` `/api/activity-days/[dayId]/attendance` -> `src/app/api/activity-days/[dayId]/attendance/route.ts`
