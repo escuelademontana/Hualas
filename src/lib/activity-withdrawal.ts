@@ -3,7 +3,10 @@ import { basePrisma, prisma } from '@/lib/prisma';
 
 type TransactionLike = Prisma.TransactionClient;
 type PrismaClientLike = {
-  $transaction<T>(fn: (tx: TransactionLike) => Promise<T> | T): Promise<T>;
+  $transaction<T>(
+    fn: (tx: TransactionLike) => Promise<T> | T,
+    options?: { maxWait?: number; timeout?: number }
+  ): Promise<T>;
 };
 
 type WithdrawalInput = {
@@ -52,40 +55,46 @@ export async function withdrawActivityParticipant(
   const client = db ?? ((basePrisma ?? prisma) as unknown as PrismaClientLike);
   const withdrawnAt = input.now ?? new Date();
 
-  return client.$transaction(async (tx: TransactionLike) => {
-    const participant = await tx.activityParticipant.findFirst({
-      where: {
-        id: input.participantId,
-        activityId: input.activityId,
-        status: 'ACTIVE',
-        OR: [{ userId: input.userId }, { child: { userId: input.userId } }],
-      },
-      select: { id: true },
-    });
+  return client.$transaction(
+    async (tx: TransactionLike) => {
+      const participant = await tx.activityParticipant.findFirst({
+        where: {
+          id: input.participantId,
+          activityId: input.activityId,
+          status: 'ACTIVE',
+          OR: [{ userId: input.userId }, { child: { userId: input.userId } }],
+        },
+        select: { id: true },
+      });
 
-    if (!participant) {
-      return null;
-    }
+      if (!participant) {
+        return null;
+      }
 
-    await tx.activityGroupMember.deleteMany({
-      where: { activityParticipantId: participant.id },
-    });
+      await tx.activityGroupMember.deleteMany({
+        where: { activityParticipantId: participant.id },
+      });
 
-    return tx.activityParticipant.update({
-      where: { id: participant.id },
-      data: {
-        status: 'WITHDRAWN',
-        withdrawnAt,
-        withdrawalNote: input.note.trim(),
-        withdrawalRating: input.rating,
-      },
-      select: {
-        id: true,
-        status: true,
-        withdrawnAt: true,
-        withdrawalNote: true,
-        withdrawalRating: true,
-      },
-    });
-  });
+      return tx.activityParticipant.update({
+        where: { id: participant.id },
+        data: {
+          status: 'WITHDRAWN',
+          withdrawnAt,
+          withdrawalNote: input.note.trim(),
+          withdrawalRating: input.rating,
+        },
+        select: {
+          id: true,
+          status: true,
+          withdrawnAt: true,
+          withdrawalNote: true,
+          withdrawalRating: true,
+        },
+      });
+    },
+    // Supabase's transaction pooler can spend several seconds acquiring a
+    // connection during a cold start. Keep the operation atomic while giving
+    // the two writes enough time to finish.
+    { maxWait: 10_000, timeout: 15_000 }
+  );
 }

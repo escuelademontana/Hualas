@@ -5,6 +5,7 @@
 const mockFindFirst = jest.fn();
 const mockDeleteMany = jest.fn();
 const mockUpdate = jest.fn();
+const mockTransactionOptions = jest.fn();
 const mockTransaction = jest.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     activityParticipant: {
@@ -19,8 +20,10 @@ const mockTransaction = jest.fn(async (callback: (tx: unknown) => unknown) =>
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {
-    $transaction: (callback: (tx: unknown) => unknown) =>
-      mockTransaction(callback),
+    $transaction: (callback: (tx: unknown) => unknown, options?: unknown) => {
+      mockTransactionOptions(options);
+      return mockTransaction(callback);
+    },
   },
 }));
 
@@ -90,6 +93,10 @@ describe('activity withdrawal', () => {
         },
       })
     );
+    expect(mockTransactionOptions).toHaveBeenCalledWith({
+      maxWait: 10_000,
+      timeout: 15_000,
+    });
   });
 
   it('does not withdraw participants outside the current family', async () => {
