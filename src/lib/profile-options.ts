@@ -19,3 +19,12 @@ export function normalizeMaritalStatus(value: string | null | undefined) {
   const normalized = value?.trim() ?? '';
   return LEGACY_MARITAL_STATUS[normalized] ?? normalized;
 }
+
+export function toMaritalStatusOption(
+  value: string | null | undefined
+): (typeof MARITAL_STATUS_OPTIONS)[number] | '' {
+  const normalized = normalizeMaritalStatus(value);
+  return (MARITAL_STATUS_OPTIONS as readonly string[]).includes(normalized)
+    ? (normalized as (typeof MARITAL_STATUS_OPTIONS)[number])
+    : '';
+}

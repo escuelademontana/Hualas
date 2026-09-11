@@ -1,5 +1,8 @@
 import { COUNTRIES } from '@/lib/countries';
-import { MARITAL_STATUS_OPTIONS } from '@/lib/profile-options';
+import {
+  MARITAL_STATUS_OPTIONS,
+  toMaritalStatusOption,
+} from '@/lib/profile-options';
 import { profileUpdateSchema } from '@/lib/validations/profile';
 
 describe('profile options', () => {
@@ -29,6 +32,7 @@ describe('profile options', () => {
     expect(
       profileUpdateSchema.safeParse({ maritalStatus: 'En pareja' }).success
     ).toBe(false);
+    expect(toMaritalStatusOption('En pareja')).toBe('');
     expect(profileUpdateSchema.parse({ maritalStatus: '' }).maritalStatus).toBe(
       ''
     );

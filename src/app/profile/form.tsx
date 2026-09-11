@@ -8,7 +8,7 @@ import CountryCombobox from '@/components/country-combobox';
 import { findCountryByName } from '@/lib/countries';
 import {
   MARITAL_STATUS_OPTIONS,
-  normalizeMaritalStatus,
+  toMaritalStatusOption,
 } from '@/lib/profile-options';
 
 type User = {
@@ -52,7 +52,7 @@ export default function ProfileForm({
     findCountryByName(user.nationality)?.name ?? ''
   );
   const [maritalStatus, setMaritalStatus] = useState<string>(() =>
-    normalizeMaritalStatus(user.maritalStatus)
+    toMaritalStatusOption(user.maritalStatus)
   );
   const [allergies, setAllergies] = useState(user.allergies ?? '');
   const [regularMedication, setRegularMedication] = useState(
