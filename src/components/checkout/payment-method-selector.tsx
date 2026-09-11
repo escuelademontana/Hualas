@@ -53,10 +53,12 @@ export default function PaymentMethodSelector({
                   : 'border-border bg-background hover:bg-muted/40'
               } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium">{option.label}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 flex-1 break-words font-medium">
+                  {option.label}
+                </span>
                 <span
-                  className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
                     active
                       ? 'border-primary text-primary'
                       : 'border-muted-foreground/30 text-muted-foreground'
