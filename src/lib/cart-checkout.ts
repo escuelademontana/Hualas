@@ -158,7 +158,6 @@ async function getActiveSocialFeeParticipants(userId: string) {
     where: {
       id: { in: ownerIds },
       isActive: true,
-      socialFeeActive: true,
     },
     select: {
       id: true,

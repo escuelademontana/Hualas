@@ -136,6 +136,30 @@ describe('buildCartQuote', () => {
     expect(quote.validatedItems).toEqual([]);
   });
 
+  it('incluye la cuota social de titulares que todavía no la pagaron', async () => {
+    mockPrisma.user.findMany.mockResolvedValue([
+      {
+        id: 'user_1',
+        socialFeeActive: false,
+        children: [],
+      },
+    ]);
+
+    const quote = await buildCartQuote({
+      userId: 'user_1',
+      items: [],
+      socialFeeOnly: true,
+    });
+
+    expect(quote.socialFeeLines).toEqual([
+      expect.objectContaining({
+        participant: { userId: 'user_1', childId: null },
+        amount: 2500,
+      }),
+    ]);
+    expect(quote.totalSocialFeeAmount).toBe(2500);
+  });
+
   it('incluye automaticamente cuotas sociales activas aunque la actividad sea para otra persona', async () => {
     const quote = await buildCartQuote({
       userId: 'user_1',
