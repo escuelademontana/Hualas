@@ -36,6 +36,12 @@ the exact command and reason in the final response.
 
 ## Deployment
 
+- Git repository: https://github.com/escuelademontana/Hualas (local `origin`).
+- Vercel project: https://vercel.com/hualas/hualas (team `hualas`, Next.js preset, root `./`), connected to `escuelademontana/Hualas`.
+- Supabase project: `hualas` (`vcdcqfpejlrhvwcytyyg`). The Neon PostgreSQL database was migrated on 2026-09-10; the target contains 46 public tables. Local `DATABASE_URL` and `SUPA_DATABASE_URL` use the Supavisor session pooler for migrations. Production `DATABASE_URL` uses the Supavisor transaction pooler with `pgbouncer=true` and `connection_limit=1` to avoid serverless connection exhaustion. `SUPABASE_DB_PASSWORD` is kept as a local helper; Vercel receives the complete pooler URL through `DATABASE_URL`.
+- Vercel Blob store: `hualas-media`, connected to the `hualas` project for Production and Preview with a generated `BLOB_READ_WRITE_TOKEN`. The activity assets migrated from the previous Blob store live in `public/activity-images/`; their database values use `/activity-images/...` and the activity image API routes serve them with immutable caching. New uploads continue to use Vercel Blob.
+- Production deployment: https://clubhualas.com.ar/ (Vercel alias https://hualas-iota.vercel.app/), built from `main` and connected to the GitHub repository. The Vercel production environment has the Supabase `DATABASE_URL`, `NEXTAUTH_SECRET`, and Google OAuth credentials configured.
+- The custom domain `clubhualas.com.ar` is assigned to Production in Vercel and shows `Configuración válida` with DNS/SSL active.
 - The production build generates Prisma Client and compiles Next.js.
 - Apply pending Prisma migrations separately with `pnpm db:migrate:deploy` before or after deploy, using the intended target database.
 - Make sure `DATABASE_URL` points to the target database when running migrations.
@@ -45,11 +51,14 @@ the exact command and reason in the final response.
 
 ## Google OAuth on Vercel
 
+- Google Cloud project: `Hualas Club` (`hualas-club`), with an external OAuth consent screen published in production. The app branding uses `https://clubhualas.com.ar/` and `https://clubhualas.com.ar/privacy-policy`; Google verification may still be required if additional sensitive/restricted scopes or branding assets are added.
+- The production OAuth client authorizes `https://hualas-iota.vercel.app/api/auth/callback/google` and `https://clubhualas.com.ar/api/auth/callback/google`; both callbacks are registered and the custom domain is validated in Vercel.
+- Keep `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local` for local work and in Vercel Production/Preview environment variables. Never commit either value.
 - `NEXTAUTH_URL` in `.env.example` is for local development only: `http://localhost:3000`.
-- In Vercel, prefer leaving `NEXTAUTH_URL` unset so NextAuth can infer the current host. If you set it, it must exactly match the origin that serves sign-in for that environment.
+- In Vercel Production, `NEXTAUTH_URL` and `APP_BASE_URL` are set to `https://clubhualas.com.ar`; Preview keeps its own host inference, so preview callbacks must be registered separately if Google sign-in is enabled there.
 - In Google Cloud, the OAuth client must authorize the exact callback URL used by NextAuth:
   - local: `http://localhost:3000/api/auth/callback/google`
-  - production: `https://your-domain.com/api/auth/callback/google`
+  - production: `https://clubhualas.com.ar/api/auth/callback/google`
 - Preview or staging deployments need their own authorized callback URL. If Google OAuth is not configured for that hostname, disable Google sign-in there and use credentials auth for testing.
 - If the Vercel domain, `NEXTAUTH_URL`, and Google authorized redirect URI do not match exactly, Google sign-in can fail with `OAUTH_CALLBACK_ERROR` / `invalid_grant`.
 
@@ -69,6 +78,7 @@ the exact command and reason in the final response.
 - `MP_PREFERENCE_EXPIRES_MINUTES`: vencimiento de la preferencia.
 - `MP_EXCLUDED_PAYMENT_METHODS`: IDs separados por coma.
 - `MP_EXCLUDED_PAYMENT_TYPES`: IDs separados por coma.
+- En Production, `MP_RETURN_URL_BASE` apunta a `https://clubhualas.com.ar` y `MP_NOTIFICATION_URL` a `https://clubhualas.com.ar/api/mercadopago/notifications`.
 
 ## Push notifications
 

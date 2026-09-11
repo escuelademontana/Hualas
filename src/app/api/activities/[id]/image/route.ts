@@ -2,6 +2,11 @@ import { del, get, put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import {
+  contentTypeForActivityAsset,
+  isStaticActivityAsset,
+  readStaticActivityAsset,
+} from '@/lib/activity-media-storage';
 import { prisma } from '@/lib/prisma';
 import {
   SAFE_IMAGE_SIGNATURE_KINDS,
@@ -20,6 +25,18 @@ export async function GET(
 
   if (!activity?.image) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  if (isStaticActivityAsset(activity.image)) {
+    const content = await readStaticActivityAsset(activity.image);
+    if (!content) return new NextResponse(null, { status: 404 });
+
+    return new NextResponse(content, {
+      headers: {
+        'Cache-Control': 'public, max-age=86400, immutable',
+        'Content-Type': contentTypeForActivityAsset(activity.image),
+      },
+    });
   }
 
   try {
@@ -127,7 +144,7 @@ export async function POST(
     );
   }
 
-  if (activity.image) {
+  if (activity.image && !isStaticActivityAsset(activity.image)) {
     await del(activity.image).catch(() => undefined);
   }
 

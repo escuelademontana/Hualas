@@ -2,6 +2,11 @@ import { del, get } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import {
+  contentTypeForActivityAsset,
+  isStaticActivityAsset,
+  readStaticActivityAsset,
+} from '@/lib/activity-media-storage';
 import { prisma } from '@/lib/prisma';
 
 function isAdminSession(session: unknown) {
@@ -23,6 +28,18 @@ export async function GET(
 
   if (!media) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  if (isStaticActivityAsset(media.url)) {
+    const content = await readStaticActivityAsset(media.url);
+    if (!content) return new NextResponse(null, { status: 404 });
+
+    return new NextResponse(content, {
+      headers: {
+        'Cache-Control': 'public, max-age=86400, immutable',
+        'Content-Type': contentTypeForActivityAsset(media.url),
+      },
+    });
   }
 
   try {
@@ -61,7 +78,9 @@ export async function DELETE(
     );
   }
 
-  await del(media.url).catch(() => undefined);
+  if (!isStaticActivityAsset(media.url)) {
+    await del(media.url).catch(() => undefined);
+  }
   await prisma.activityMedia.delete({ where: { id: media.id } });
 
   return NextResponse.json({ ok: true });

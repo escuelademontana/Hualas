@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+android
+iphone
+coverage
+*.log
+.codex-tools
+.pnpm-store
