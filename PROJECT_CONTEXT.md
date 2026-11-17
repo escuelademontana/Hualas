@@ -58,6 +58,9 @@ Important models:
 
 - `User`: adult member / parent account. Roles: `MEMBER`, `PROFESSOR`, `COUNTER`, `ADMIN`, `SUPER_ADMIN`.
 - `UserRoleAssignment`: extra role capabilities available to a user.
+  - Admin role changes use the unextended Prisma client inside a transaction
+    and write their audit rows through that transaction. This avoids a second
+    connection while production Supavisor runs with `connection_limit=1`.
 - `Child`: child profile linked to a `User`.
 - `FamilyGroup`, `FamilyGroupMember`: family/tutor grouping and payment responsibility.
 - `Activity`: club activity, course, outing, or subscription.

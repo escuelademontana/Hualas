@@ -190,6 +190,9 @@ Methods below come from the current `route.ts` exports.
 
 - `GET, POST` `/api/users` -> `src/app/api/users/route.ts`
 - `PATCH, DELETE` `/api/users/[id]` -> `src/app/api/users/[id]/route.ts`
+  - Role assignments are synchronized transactionally; their audit rows use
+    that same transaction connection to support production's single-connection
+    Supavisor pool.
 - `GET, POST` `/api/users/[id]/children` -> `src/app/api/users/[id]/children/route.ts`
 - `PUT, DELETE` `/api/users/[id]/children/[childId]` -> `src/app/api/users/[id]/children/[childId]/route.ts`
 - `GET` `/api/users/[id]/photo` -> `src/app/api/users/[id]/photo/route.ts`

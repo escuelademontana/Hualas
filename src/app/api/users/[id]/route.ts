@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { basePrisma, prisma } from '@/lib/prisma';
 import { userUpdateSchema } from '@/lib/validations/user';
 import { hasAdminCapability, hasSuperAdminCapability } from '@/lib/roles';
 import { blocksSuperAdminTarget } from '@/lib/admin-user-protection';
+import { redactAuditValue } from '@/lib/security/audit-redaction';
 import type { Role } from '@prisma/client';
+
+function auditJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(
+    JSON.stringify(redactAuditValue(value))
+  ) as Prisma.InputJsonValue;
+}
 
 export async function PATCH(
   req: Request,
@@ -136,47 +145,133 @@ export async function PATCH(
     }
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    if (nextRoles !== null) {
-      await tx.userRoleAssignment.deleteMany({
-        where: { userId: params.id, role: { notIn: nextRoles as Role[] } },
+  const userSelect = {
+    id: true,
+    email: true,
+    name: true,
+    lastName: true,
+    role: true,
+    activeRole: true,
+    dni: true,
+    birthDate: true,
+    gender: true,
+    address: true,
+    phone: true,
+    nationality: true,
+    maritalStatus: true,
+    observations: true,
+    isActive: true,
+    socialFeeActive: true,
+    roleAssignments: { select: { role: true } },
+  } as const;
+
+  let user;
+  try {
+    if (nextRoles === null) {
+      user = await prisma.user.update({
+        where: { id: params.id },
+        data: updateData,
+        select: userSelect,
       });
-      for (const role of nextRoles) {
-        await tx.userRoleAssignment.upsert({
-          where: { userId_role: { userId: params.id, role } },
-          create: {
-            userId: params.id,
-            role,
-            assignedById: session.user.id,
-          },
-          update: {},
+    } else {
+      // The audit extension uses a second Prisma connection for writes. Keep
+      // role changes and their audit rows on the same connection because
+      // production's Supavisor pool is configured with connection_limit=1.
+      user = await basePrisma.$transaction(async (tx) => {
+        const previousAssignments = await tx.userRoleAssignment.findMany({
+          where: { userId: params.id },
         });
-      }
+        const nextRoleSet = new Set(nextRoles as Role[]);
+        const removedAssignments = previousAssignments.filter(
+          (assignment) => !nextRoleSet.has(assignment.role)
+        );
+        const previousUser = await tx.user.findUnique({
+          where: { id: params.id },
+        });
+
+        await tx.userRoleAssignment.deleteMany({
+          where: { userId: params.id, role: { notIn: nextRoles as Role[] } },
+        });
+        for (const assignment of removedAssignments) {
+          await tx.dbAuditLog.create({
+            data: {
+              id: randomUUID(),
+              model: 'UserRoleAssignment',
+              action: 'deleteMany',
+              recordId: assignment.id,
+              before: auditJson(assignment),
+              after: Prisma.DbNull,
+              args: auditJson({ where: { id: assignment.id } }),
+              userId: session.user.id,
+            },
+          });
+        }
+
+        for (const role of nextRoles) {
+          const existed = previousAssignments.some(
+            (assignment) => assignment.role === role
+          );
+          const assignment = await tx.userRoleAssignment.upsert({
+            where: { userId_role: { userId: params.id, role } },
+            create: {
+              userId: params.id,
+              role,
+              assignedById: session.user.id,
+            },
+            update: {},
+          });
+          if (!existed) {
+            await tx.dbAuditLog.create({
+              data: {
+                id: randomUUID(),
+                model: 'UserRoleAssignment',
+                action: 'upsert',
+                recordId: assignment.id,
+                before: Prisma.DbNull,
+                after: auditJson(assignment),
+                args: auditJson({ where: { userId: params.id, role } }),
+                userId: session.user.id,
+              },
+            });
+          }
+        }
+
+        const updatedUser = await tx.user.update({
+          where: { id: params.id },
+          data: updateData,
+          select: userSelect,
+        });
+
+        if (previousUser) {
+          await tx.dbAuditLog.create({
+            data: {
+              id: randomUUID(),
+              model: 'User',
+              action: 'update',
+              recordId: updatedUser.id,
+              before: auditJson(previousUser),
+              after: auditJson(updatedUser),
+              args: auditJson({ where: { id: params.id }, data: updateData }),
+              userId: session.user.id,
+            },
+          });
+        }
+
+        return updatedUser;
+      });
     }
-    return tx.user.update({
-      where: { id: params.id },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        lastName: true,
-        role: true,
-        activeRole: true,
-        dni: true,
-        birthDate: true,
-        gender: true,
-        address: true,
-        phone: true,
-        nationality: true,
-        maritalStatus: true,
-        observations: true,
-        isActive: true,
-        socialFeeActive: true,
-        roleAssignments: { select: { role: true } },
+  } catch (error) {
+    console.error('[PATCH /api/users/[id]] Failed to update user', error);
+    return NextResponse.json(
+      {
+        error:
+          nextRoles !== null
+            ? 'No se pudieron guardar los roles'
+            : 'No se pudo actualizar el usuario',
       },
-    });
-  });
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(user);
 }
