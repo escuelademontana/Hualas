@@ -48,6 +48,10 @@ export default function ProfileSwitcher({ className }: { className?: string }) {
         return;
       }
       await update({ updatedAt: new Date().toISOString() });
+      if (role === 'COUNTER') {
+        router.replace('/accounting');
+        return;
+      }
       router.refresh();
     });
   }

@@ -149,6 +149,8 @@ Database integrity notes:
 - Logged-in professors and admins can open a group detail view to review members and add or remove participants from that group.
 - Activity days can be restricted to a single group; attendance confirmation is blocked for participants outside that group.
 - `COUNTER` and active `ADMIN` can access accounting.
+  - `/accounting` is the default landing page after login or when switching
+    into the `COUNTER` profile.
 - `ADMIN` and `SUPER_ADMIN` capabilities can manage activities, users, and forms through the active `ADMIN` profile.
 - The admin user list searches by first name, last name, full name, email, and
   fuzzy similarity, and it can be filtered by activity.

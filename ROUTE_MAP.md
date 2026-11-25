@@ -124,6 +124,8 @@ route, update this file in the same change.
 
 All `/accounting/*` pages are guarded by `src/app/accounting/layout.tsx` and
 require active `COUNTER` or `ADMIN`.
+After login or switching into the `COUNTER` profile, the default landing page
+is `/accounting`, the club financial overview.
 
 - `/accounting` -> `src/app/accounting/page.tsx`
   - Shows the accounting dashboard. If professor payment or month-close
