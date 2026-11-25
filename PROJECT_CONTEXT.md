@@ -182,6 +182,7 @@ Database integrity notes:
   `ActivityParticipant` records through the shared transactional finalization
   helper in `src/lib/services/activity-enrollment-finalization.ts`.
 - Manual payment rejection cancels the linked order and order items.
+- Manual payment approval uses the unextended Prisma client and writes its order, payment, and enrollment audit rows through the same transaction. This avoids a second connection while production Supavisor runs with `connection_limit=1`.
 - Capacity must be re-checked inside the enrollment finalization transaction
   before registering a participant.
 - Activity registration may be for the logged-in user or one of their children.

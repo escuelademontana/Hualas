@@ -309,6 +309,7 @@ Native iPhone and Android clients use bearer-token auth through these
 - `GET, POST` `/api/accounting/month-close` -> `src/app/api/accounting/month-close/route.ts`
 - `GET` `/api/accounting/manual-payments` -> `src/app/api/accounting/manual-payments/route.ts`
 - `POST` `/api/accounting/manual-payments/[id]/approve` -> `src/app/api/accounting/manual-payments/[id]/approve/route.ts`
+  - Approval writes the linked order, payment, and enrollment updates in one transaction using the unextended Prisma client; audit rows share that transaction to avoid opening a second Supavisor connection.
 - `POST` `/api/accounting/manual-payments/[id]/reject` -> `src/app/api/accounting/manual-payments/[id]/reject/route.ts`
 - `GET` `/api/accounting/manual-payments/[id]/receipt` -> `src/app/api/accounting/manual-payments/[id]/receipt/route.ts`
 - `GET` `/api/billing/concepts` -> `src/app/api/billing/concepts/route.ts`

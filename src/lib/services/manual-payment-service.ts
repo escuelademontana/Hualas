@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { del, put } from '@vercel/blob';
-import { BillableConceptCode, PaymentStatus, Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { ActivityType, BillableConceptCode, PaymentStatus, Prisma } from '@prisma/client';
+import { basePrisma, prisma } from '@/lib/prisma';
 import { registerActivityParticipantPayment } from '@/lib/activity-payments';
+import { getActivityParticipantKey } from '@/lib/activity-participants';
 import { registerSocialFeePayment } from '@/lib/social-fee';
 import { familyGroupService } from '@/lib/services/family-group-service';
 import { finalizePaidActivityEnrollment } from '@/lib/services/activity-enrollment-finalization';
@@ -469,7 +471,7 @@ export async function createManualPaymentCheckout(input: {
     return { error: validation.error, status: 400 as const };
   }
 
-  const paymentId = crypto.randomUUID();
+  const paymentId = randomUUID();
   const uploadPath = buildManualPaymentUploadPath(
     paymentId,
     input.proofFile.name || 'proof.pdf'
@@ -662,6 +664,8 @@ export async function approveManualPayment({
         select: {
           id: true,
           responsibleUserId: true,
+          status: true,
+          paidAt: true,
         },
       },
     },
@@ -683,60 +687,298 @@ export async function approveManualPayment({
   const pendingValidatedItems = pendingRawData.validatedItems ?? [];
   let updatedPayment;
   try {
-    updatedPayment = await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: payment.orderId },
-        data: { status: 'PAID', paidAt: now },
-      });
+    // Use the unextended client: the audit Prisma extension opens another
+    // connection for writes, which can deadlock production's single-connection
+    // Supavisor pool while this transaction is active. Write audit rows using
+    // this transaction so approval remains atomic.
+    updatedPayment = await basePrisma.$transaction(
+      async (tx) => {
+        const audit = async (
+          model: string,
+          recordId: string | null,
+          before: Prisma.InputJsonValue,
+          after: Prisma.InputJsonValue,
+          action = 'update'
+        ) =>
+          tx.dbAuditLog.create({
+            data: {
+              id: randomUUID(),
+              model,
+              action,
+              recordId,
+              before,
+              after,
+              userId: reviewer.id,
+            },
+          });
 
-      await tx.orderItem.updateMany({
-        where: { orderId: payment.orderId },
-        data: { status: 'PAID' },
-      });
+        const orderBefore = {
+          status: payment.order.status,
+          paidAt: payment.order.paidAt?.toISOString() ?? null,
+        };
+        const updatedOrder = await tx.order.update({
+          where: { id: payment.orderId },
+          data: { status: 'PAID', paidAt: now },
+          select: { status: true, paidAt: true },
+        });
+        await audit('Order', payment.order.id, orderBefore, {
+          status: updatedOrder.status,
+          paidAt: updatedOrder.paidAt?.toISOString() ?? null,
+        });
 
-      const approvedPayment = await tx.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: 'APPROVED',
-          paidAt: now,
-          rawData: appendManualPaymentReview(payment.rawData, {
-            action: 'approved',
-            by: reviewer.email ?? reviewer.name ?? 'admin',
-            at: now.toISOString(),
-            result: 'approved',
-          }),
-        },
-      });
+        const orderItemsBefore = await tx.orderItem.findMany({
+          where: { orderId: payment.orderId },
+          select: { id: true, status: true },
+        });
+        await tx.orderItem.updateMany({
+          where: { orderId: payment.orderId },
+          data: { status: 'PAID' },
+        });
+        await audit('OrderItem', null, orderItemsBefore, {
+          status: 'PAID',
+          count: orderItemsBefore.length,
+        });
 
-      for (const item of pendingValidatedItems) {
-        const childId =
-          item.target && item.target !== 'self' ? item.target : null;
-        const result = await finalizePaidActivityEnrollment(
-          {
-            activityId: item.activityId,
-            userId: payment.order.responsibleUserId ?? reviewer.id,
-            childId,
-            groupId: item.groupId,
-            activityDayId: item.activityDayId,
-            paymentReference: approvedPayment.id,
-            paidAt: approvedPayment.paidAt ?? now,
-            receipt: approvedPayment.id,
-            receiptDate: approvedPayment.paidAt ?? now,
+        const approvedPayment = await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'APPROVED',
+            paidAt: now,
+            rawData: appendManualPaymentReview(payment.rawData, {
+              action: 'approved',
+              by: reviewer.email ?? reviewer.name ?? 'admin',
+              at: now.toISOString(),
+              result: 'approved',
+            }),
           },
-          tx
+        });
+        await audit(
+          'Payment',
+          approvedPayment.id,
+          {
+            status: payment.status,
+            paidAt: payment.paidAt?.toISOString() ?? null,
+          },
+          {
+            status: approvedPayment.status,
+            paidAt: approvedPayment.paidAt?.toISOString() ?? null,
+          }
         );
 
-        if (result.status !== 'enrolled') {
-          throw new ManualPaymentApprovalBlockedError(
-            result.reason === 'group_full'
-              ? 'El grupo ya no tiene cupo disponible.'
-              : 'La actividad ya no tiene cupo disponible.'
+        for (const item of pendingValidatedItems) {
+          const childId =
+            item.target && item.target !== 'self' ? item.target : null;
+          const participantKey = getActivityParticipantKey(
+            item.activityId,
+            payment.order.responsibleUserId ?? reviewer.id,
+            childId
           );
-        }
-      }
+          const previousParticipant = await tx.activityParticipant.findUnique({
+            where: { participantKey },
+            select: {
+              id: true,
+              status: true,
+              receipt: true,
+              receiptDate: true,
+            },
+          });
+          const previousGroupMember = previousParticipant
+            ? await tx.activityGroupMember.findUnique({
+                where: {
+                  activityParticipantId: previousParticipant.id,
+                },
+                select: { id: true, activityGroupId: true },
+              })
+            : null;
+          const activityForPayment = await tx.activity.findUnique({
+            where: { id: item.activityId },
+            select: { activityType: true },
+          });
+          let previousActivityPayment = null;
+          if (
+            previousParticipant &&
+            activityForPayment?.activityType === ActivityType.ANNUAL
+          ) {
+            const paidAt = approvedPayment.paidAt ?? now;
+            previousActivityPayment =
+              await tx.activityParticipantPayment.findUnique({
+                where: {
+                  activityParticipantId_periodMonth_periodYear: {
+                    activityParticipantId: previousParticipant.id,
+                    periodMonth: paidAt.getUTCMonth() + 1,
+                    periodYear: paidAt.getUTCFullYear(),
+                  },
+                },
+                select: {
+                  id: true,
+                  paymentType: true,
+                  periodMonth: true,
+                  periodYear: true,
+                  activityDayId: true,
+                  amount: true,
+                  paymentReference: true,
+                  paidAt: true,
+                },
+              });
+          } else if (previousParticipant) {
+            const day = item.activityDayId
+              ? await tx.activityDay.findFirst({
+                  where: {
+                    id: item.activityDayId,
+                    activityId: item.activityId,
+                    cancelled: false,
+                  },
+                  select: { id: true },
+                })
+              : null;
+            let activityDayId = day?.id ?? null;
+            if (!item.activityDayId) {
+              const candidates = await tx.activityDay.findMany({
+                where: {
+                  activityId: item.activityId,
+                  cancelled: false,
+                  ...(item.groupId ? { activityGroupId: item.groupId } : {}),
+                },
+                select: { id: true },
+                orderBy: { date: 'asc' },
+                take: 2,
+              });
+              activityDayId = candidates.length === 1 ? candidates[0].id : null;
+            }
+            if (activityDayId) {
+              previousActivityPayment =
+                await tx.activityParticipantPayment.findUnique({
+                  where: {
+                    activityParticipantId_activityDayId: {
+                      activityParticipantId: previousParticipant.id,
+                      activityDayId,
+                    },
+                  },
+                  select: {
+                    id: true,
+                    paymentType: true,
+                    periodMonth: true,
+                    periodYear: true,
+                    activityDayId: true,
+                    amount: true,
+                    paymentReference: true,
+                    paidAt: true,
+                  },
+                });
+            }
+          }
+          const result = await finalizePaidActivityEnrollment(
+            {
+              activityId: item.activityId,
+              userId: payment.order.responsibleUserId ?? reviewer.id,
+              childId,
+              groupId: item.groupId,
+              activityDayId: item.activityDayId,
+              paymentReference: approvedPayment.id,
+              paidAt: approvedPayment.paidAt ?? now,
+              receipt: approvedPayment.id,
+              receiptDate: approvedPayment.paidAt ?? now,
+            },
+            tx
+          );
 
-      return approvedPayment;
-    });
+          if (result.status !== 'enrolled') {
+            throw new ManualPaymentApprovalBlockedError(
+              result.reason === 'group_full'
+                ? 'El grupo ya no tiene cupo disponible.'
+                : 'La actividad ya no tiene cupo disponible.'
+            );
+          }
+
+          await audit(
+            'ActivityParticipant',
+            result.participant.id,
+            previousParticipant
+              ? {
+                  status: previousParticipant.status,
+                  receipt: previousParticipant.receipt,
+                  receiptDate:
+                    previousParticipant.receiptDate?.toISOString() ?? null,
+                }
+              : {},
+            {
+              status: 'ACTIVE',
+              paymentReference: approvedPayment.id,
+              activityId: item.activityId,
+              created: result.created,
+            },
+            'upsert'
+          );
+
+          if (item.groupId) {
+            const currentGroupMember = await tx.activityGroupMember.findUnique({
+              where: {
+                activityParticipantId: result.participant.id,
+              },
+              select: { id: true, activityGroupId: true },
+            });
+            await audit(
+              'ActivityGroupMember',
+              currentGroupMember?.id ?? previousGroupMember?.id ?? null,
+              previousGroupMember ?? {},
+              currentGroupMember ?? {
+                activityGroupId: item.groupId,
+                activityParticipantId: result.participant.id,
+              },
+              'upsert'
+            );
+          }
+
+          const participantPayments =
+            await tx.activityParticipantPayment.findMany({
+              where: {
+                activityParticipantId: result.participant.id,
+                paymentReference: approvedPayment.id,
+              },
+              select: {
+                id: true,
+                paymentType: true,
+                periodMonth: true,
+                periodYear: true,
+                activityDayId: true,
+                amount: true,
+                paymentReference: true,
+                paidAt: true,
+              },
+            });
+          for (const participantPayment of participantPayments) {
+            await audit(
+              'ActivityParticipantPayment',
+              participantPayment.id,
+              previousActivityPayment
+                ? {
+                    paymentType: previousActivityPayment.paymentType,
+                    periodMonth: previousActivityPayment.periodMonth,
+                    periodYear: previousActivityPayment.periodYear,
+                    activityDayId: previousActivityPayment.activityDayId,
+                    amount: previousActivityPayment.amount,
+                    paymentReference: previousActivityPayment.paymentReference,
+                    paidAt: previousActivityPayment.paidAt.toISOString(),
+                  }
+                : {},
+              {
+                paymentType: participantPayment.paymentType,
+                periodMonth: participantPayment.periodMonth,
+                periodYear: participantPayment.periodYear,
+                activityDayId: participantPayment.activityDayId,
+                amount: participantPayment.amount,
+                paymentReference: participantPayment.paymentReference,
+                paidAt: participantPayment.paidAt.toISOString(),
+              },
+              'upsert'
+            );
+          }
+        }
+
+        return approvedPayment;
+      },
+      { maxWait: 10_000, timeout: 30_000 }
+    );
   } catch (error) {
     if (error instanceof ManualPaymentApprovalBlockedError) {
       return { error: error.message, status: 409 as const };
